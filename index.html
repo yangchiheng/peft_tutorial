@@ -50,7 +50,7 @@
   <p>Install the necessary Python packages for running the PEFT tutorial using pip:</p>
   <pre><code>pip install transformers peft datasets accelerate scikit-learn torch</code></pre>
 
-  <p>If using a virtual environment or Docker, include the following in <code>requirements.txt</code>:</p>
+  <p>If using a virtual environment or Docker, include the following in: <code>requirements.txt</code></p>
   <pre><code>transformers
 peft
 datasets
@@ -105,6 +105,7 @@ model.print_trainable_parameters()</code></pre>
   <p>Use Hugging Face's Trainer API to fine-tune the model using the prepared dataset:</p>
   <pre><code>from transformers import TrainingArguments, Trainer
 
+# Define training arguments with W&B logging disabled properly
 training_args = TrainingArguments(
     output_dir="./results",
     per_device_train_batch_size=4,
@@ -113,8 +114,10 @@ training_args = TrainingArguments(
     evaluation_strategy="epoch",
     logging_dir="./logs",
     logging_steps=10,
+    report_to="none",  
 )
 
+# Create Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
@@ -122,23 +125,25 @@ trainer = Trainer(
     eval_dataset=dataset["test"],
 )
 
+# Train
 trainer.train()</code></pre>
 
-  <h2>8. Evaluate and Predict</h2>
-  <p>After training, evaluate your model on the test set and print common classification metrics:</p>
-  <pre><code>from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-import torch
+  <h2>8. Inference</h2>
+  <p>After training, use the model for inference to see the classification result for specific instances:</p>
+  <pre><code>from transformers import pipeline
 
-# Evaluate on test set
-predictions = trainer.predict(dataset["test"])
-y_true = predictions.label_ids
-y_pred = predictions.predictions.argmax(axis=1)
+# Create an inference pipeline using the trained model and tokenizer
+clf_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer, return_all_scores=False)
 
-precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="binary")
-accuracy = accuracy_score(y_true, y_pred)
+# Raw test examples (re-adding original text manually since it was removed from dataset)
+test_texts = ["Fantastic!", "I want a refund."]
 
-print(f"Accuracy: {accuracy:.4f}")
-print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")</code></pre>
+# Run inference
+for text in test_texts:
+    prediction = clf_pipeline(text)[0]
+    print(f"Input: {text}")
+    print(f"Predicted label: {prediction['label']} with score {prediction['score']:.4f}\n")
+    </code></pre>
 
   <h2>9. Summary and Use Cases</h2>
   <p>LoRA fine-tuning allows fast adaptation of large models in environments with limited hardware. Typical use cases include:</p>

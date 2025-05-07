@@ -1,0 +1,14 @@
+name: peft-tutorial
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - torch
+      - transformers
+      - datasets
+      - accelerate
+      - scikit-learn
+      - peft
