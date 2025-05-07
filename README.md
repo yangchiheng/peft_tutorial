@@ -4,7 +4,7 @@ This repository provides a hands-on tutorial for fine-tuning transformer models 
 
 ---
 
-## 🔍 Repository Structure
+## Repository Structure
 
 ```
 peft-tutorial/
@@ -19,16 +19,16 @@ peft-tutorial/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-### 🧪 Recommended: Create Conda Environment
+### Create Conda Environment
 
 ```bash
 conda env create -f environment.yml
 conda activate peft-tutorial
 ```
 
-### 🧩 Alternative: Install via pip
+### Alternative: Install via pip
 
 ```bash
 pip install -r requirements.txt
@@ -36,7 +36,7 @@ pip install -r requirements.txt
 
 ---
 
-## 📘 How to Use
+## How to Use
 
 ### View the Tutorial
 
