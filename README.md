@@ -60,7 +60,6 @@ Model checkpoints, logs, and evaluation results will be saved under the `results
 - Comparison of encoder-only, decoder-only, and encoder-decoder architectures
 - BERT-based text classification using Hugging Face Transformers
 - Efficient training using LoRA adapters
-- Evaluation using accuracy, precision, recall, and F1-score
 
 ---
 
