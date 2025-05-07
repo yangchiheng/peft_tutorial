@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fine-Tuning with Hugging Face PEFT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 2rem; max-width: 800px; margin: auto; background-color: #f9f9f9; color: #333; }
+    h1, h2, h3 { color: #2c3e50; }
+    pre, code { background: #eef; padding: 0.5rem; border-radius: 4px; display: block; overflow-x: auto; }
+    img { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>Fine-Tuning with Hugging Face PEFT</h1>
+
+  <p><strong>Goal:</strong> This tutorial demonstrates how to fine-tune a pretrained transformer model using <strong>Parameter-Efficient Fine-Tuning (PEFT)</strong> with LoRA on a text classification task. The goal is to reduce computational cost while maintaining effectiveness.</p>
+
+  <h2>1. Introduction to PEFT</h2>
+  <p><strong>Parameter-Efficient Fine-Tuning (PEFT)</strong> is a suite of techniques that enables training only a small number of parameters, making it more efficient to adapt large pretrained language models to downstream tasks.</p>
+
+  <ul>
+    <li><strong>LoRA</strong>: Low-Rank Adaptation layers added to existing weights.</li>
+    <li><strong>Prefix Tuning</strong>: Adds trainable vectors to transformer input sequences.</li>
+    <li><strong>Prompt Tuning</strong>: Learns soft embeddings to prompt the model.</li>
+  </ul>
+
+  <h3>Why PEFT?</h3>
+  <ul>
+    <li>Reduces memory and compute requirements.</li>
+    <li>Supports multi-task fine-tuning without full model duplication.</li>
+    <li>Great for edge devices and low-budget environments.</li>
+  </ul>
+
+  <h3>Mathematical View: LoRA</h3>
+  <p>Let \( W \in \mathbb{R}^{d \times k} \) be a frozen pretrained weight matrix. We introduce trainable matrices \( A \in \mathbb{R}^{d \times r} \) and \( B \in \mathbb{R}^{r \times k} \). The update becomes:</p>
+  <p>\[ W' = W + AB \]</p>
+
+  <h2>2. Model Types and Selection</h2>
+  <ul>
+    <li><strong>Encoder-Only:</strong> e.g., BERT, RoBERTa, DistilBERT – best for classification/token-level tasks</li>
+    <li><strong>Decoder-Only:</strong> e.g., GPT-2, GPT-J, GPT-Neo – great for generative tasks</li>
+    <li><strong>Encoder-Decoder:</strong> e.g., T5, BART, mT5 – good for seq2seq tasks like summarization or translation</li>
+  </ul>
+  <p>In this project, we use <strong>encoder-only BERT</strong> to perform <strong>text classification</strong> using LoRA from the PEFT library.</p>
+
+  <h2>3. Environment Setup</h2>
+  <p>Install the necessary Python packages for running the PEFT tutorial using pip:</p>
+  <pre><code>pip install transformers peft datasets accelerate scikit-learn torch</code></pre>
+
+  <p>If using a virtual environment or Docker, include the following in <code>requirements.txt</code>:</p>
+  <pre><code>transformers
+peft
+datasets
+accelerate
+scikit-learn
+torch</code></pre>
+
+  <h2>4. Load and Prepare Dataset</h2>
+  <p>Create a synthetic dataset to simulate a text classification task with two classes (positive and negative):</p>
+  <pre><code>from datasets import Dataset
+
+samples = [
+    {"text": "I love this product!", "label": 1},
+    {"text": "Horrible experience.", "label": 0},
+    {"text": "Fantastic!", "label": 1},
+    {"text": "I want a refund.", "label": 0},
+]
+
+dataset = Dataset.from_list(samples)
+dataset = dataset.train_test_split(test_size=0.25)</code></pre>
+
+  <h2>5. Tokenization and Model Loading</h2>
+  <p>Load the pretrained tokenizer and BERT model for sequence classification. Then tokenize the dataset:</p>
+  <pre><code>from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+
+def preprocess(example):
+    return tokenizer(example['text'], truncation=True, padding="max_length", max_length=64)
+
+dataset = dataset.map(preprocess, batched=True)
+dataset = dataset.remove_columns(["text"])
+dataset.set_format("torch")</code></pre>
+
+  <h2>6. Apply LoRA with PEFT</h2>
+  <p>Configure and attach a LoRA adapter to the base model to reduce the number of trainable parameters:</p>
+  <pre><code>from peft import get_peft_model, LoraConfig, TaskType
+
+config = LoraConfig(
+    task_type=TaskType.SEQ_CLS,
+    inference_mode=False,
+    r=8,
+    lora_alpha=32,
+    lora_dropout=0.1,
+)
+
+model = get_peft_model(model, config)
+model.print_trainable_parameters()</code></pre>
+
+  <h2>7. Training the Model</h2>
+  <p>Use Hugging Face's Trainer API to fine-tune the model using the prepared dataset:</p>
+  <pre><code>from transformers import TrainingArguments, Trainer
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
+    num_train_epochs=3,
+    evaluation_strategy="epoch",
+    logging_dir="./logs",
+    logging_steps=10,
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset["train"],
+    eval_dataset=dataset["test"],
+)
+
+trainer.train()</code></pre>
+
+  <h2>8. Evaluate and Predict</h2>
+  <p>After training, evaluate your model on the test set and print common classification metrics:</p>
+  <pre><code>from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import torch
+
+# Evaluate on test set
+predictions = trainer.predict(dataset["test"])
+y_true = predictions.label_ids
+y_pred = predictions.predictions.argmax(axis=1)
+
+precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="binary")
+accuracy = accuracy_score(y_true, y_pred)
+
+print(f"Accuracy: {accuracy:.4f}")
+print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")</code></pre>
+
+  <h2>9. Summary and Use Cases</h2>
+  <p>LoRA fine-tuning allows fast adaptation of large models in environments with limited hardware. Typical use cases include:</p>
+  <ul>
+    <li>Fine-tuning foundation models with small datasets</li>
+    <li>Efficient multi-task or domain-specific training</li>
+    <li>On-device NLP systems for classification or intent detection</li>
+  </ul>
+
+  <hr>
+  <p><strong>Author:</strong> Chi-Heng Yang • <strong>GitHub:</strong> <code>yangchiheng.github.io/peft-tutorial</code></p>
+</body>
+</html>
